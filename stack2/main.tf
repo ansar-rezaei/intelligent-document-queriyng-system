@@ -15,7 +15,7 @@ module "bedrock_kb" {
   aurora_primary_key_field = "id"
   aurora_metadata_field = "metadata"
   aurora_text_field = "chunks"
-  aurora_verctor_field = "embedding"
+  aurora_vector_field = "embedding"
   aurora_username   = "dbadmin"
   aurora_secret_arn = "" #TODO Update with output from stack1
   s3_bucket_arn = "" #TODO Update with output from stack1
