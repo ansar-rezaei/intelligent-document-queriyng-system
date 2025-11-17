@@ -1,6 +1,16 @@
 import boto3
+import os
+import streamlit as st
 from botocore.exceptions import ClientError
 import json
+
+aws_cfg = st.secrets.get("aws", {})
+session = boto3.Session(
+    aws_access_key_id=aws_cfg.get("aws_access_key_id") or os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=aws_cfg.get("aws_secret_access_key") or os.getenv("AWS_SECRET_ACCESS_KEY"),
+    aws_session_token=aws_cfg.get("aws_session_token") or os.getenv("AWS_SESSION_TOKEN"),
+    region_name=aws_cfg.get("region") or os.getenv("AWS_REGION", "us-west-2"),
+)
 
 # Initialize AWS Bedrock client
 bedrock = boto3.client(
