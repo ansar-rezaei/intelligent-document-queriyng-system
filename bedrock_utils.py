@@ -1,25 +1,26 @@
 import boto3
-import os
 import streamlit as st
 from botocore.exceptions import ClientError
 import json
+# Initialize AWS Bedrock client
 
-aws_cfg = st.secrets.get("aws", {})
 session = boto3.Session(
-    aws_access_key_id=aws_cfg.get("aws_access_key_id") or os.getenv("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=aws_cfg.get("aws_secret_access_key") or os.getenv("AWS_SECRET_ACCESS_KEY"),
-    aws_session_token=aws_cfg.get("aws_session_token") or os.getenv("AWS_SESSION_TOKEN"),
-    region_name=aws_cfg.get("region") or os.getenv("AWS_REGION", "us-west-2"),
+    region_name=st.secrets.aws_region,
+    aws_access_key_id=st.secrets.aws_access_key_id,
+    aws_secret_access_key=st.secrets.aws_secret_access_key,
+    aws_session_token=st.secrets.aws_session_token
 )
 
-# Initialize AWS Bedrock client
-bedrock = boto3.client(
+bedrock = session.client(
     service_name='bedrock-runtime',
-    region_name='us-west-2'  # Replace with your AWS region
+    region_name=st.secrets.aws_region,
+    aws_access_key_id=st.secrets.aws_access_key_id,
+    aws_secret_access_key=st.secrets.aws_secret_access_key,
+    aws_session_token=st.secrets.aws_session_token
 )
 
 # Initialize Bedrock Knowledge Base client
-bedrock_kb = boto3.client(
+bedrock_kb = session.client(
     service_name='bedrock-agent-runtime',
     region_name='us-west-2'  # Replace with your AWS region
 )
