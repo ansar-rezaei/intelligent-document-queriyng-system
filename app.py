@@ -11,7 +11,7 @@ st.title("Bedrock Chat Application")
 # Sidebar for configurations
 st.sidebar.header("Configuration")
 model_id = st.sidebar.selectbox("Select LLM Model", ["anthropic.claude-3-haiku-20240307-v1:0", "anthropic.claude-3-sonnet-20240229-v1:0", "anthropic.claude-3-5-sonnet-20240620-v1:0","anthropic.claude-3-5-haiku-20241022-v1:0"])
-kb_id = st.sidebar.text_input("Knowledge Base ID", "UYKSMCA2IN") #TODO Update with output from stack2
+kb_id = st.sidebar.text_input("Knowledge Base ID", "drop your kb id here") #TODO Update with output from stack2
 temperature = st.sidebar.select_slider("Temperature", [i/10 for i in range(0,11)],1)
 top_p = st.sidebar.select_slider("Top_P", [i/1000 for i in range(0,1001)], 1)
 
@@ -19,6 +19,8 @@ top_p = st.sidebar.select_slider("Top_P", [i/1000 for i in range(0,1001)], 1)
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+with st.chat_message("assistant"):
+    st.write("Hello human! I am your assistant! I am here to help you with your Heavy Machinery questions. How can I assist you today?")
 # Display chat messages
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
