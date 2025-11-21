@@ -6,17 +6,18 @@ import json
 
 my_session  = boto3.session.Session(**st.secrets.aws)
 
-# control plane (catalog)
 bedrock_catalog = my_session.client(
     service_name="bedrock"
 )
 
-# data plane (inference)
+bedrock_agent = my_session.client(
+    service_name = 'bedrock-agent'
+)
+
 bedrock = my_session.client(
     service_name='bedrock-runtime',
 )
 
-# Initialize Bedrock Knowledge Base client
 bedrock_kb = my_session.client(
     service_name='bedrock-agent-runtime',
 )
@@ -177,3 +178,10 @@ def generate_response(prompt, model_id, temperature, top_p):
     except ClientError as e:
         print(f"Error generating response: {e}")
         return ""
+
+def is_valid_kb_id(kb_id):
+    try:
+        bedrock_agent.get_knowledge_base(knowledgeBaseId=kb_id)
+        return True
+    except ClientError:
+        return False

@@ -2,7 +2,7 @@ import streamlit as st
 import boto3
 from botocore.exceptions import ClientError
 import json
-from bedrock_utils import query_knowledge_base, generate_response, valid_prompt
+from bedrock_utils import query_knowledge_base, generate_response, valid_prompt, is_valid_kb_id
 
 
 # Streamlit UI
@@ -42,6 +42,20 @@ min_prompt_length = st.sidebar.select_slider(
     help="Prompts shorter than this value will be rejected"
 )
 
+@st.dialog("Knowledge Base ID Required", dismissible=False)
+def kb_id_dialog():
+    st.error("Invalid or missing Knowledge Base ID.")
+    st.write("Enter a valid Knowledge Base ID in the sidebar, then click OK to continue.")
+    if st.button("OK"):
+        st.rerun()
+
+@st.dialog("Thanks for entering Valid ID", dismissible=True)
+def correct_kb():
+    st.success("Let's Chat!")
+
+if "valid_kb" not in st.session_state:
+    st.session_state.valid_kb = False
+
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -55,6 +69,18 @@ for message in st.session_state.messages:
 
 # Chat input
 if prompt := st.chat_input("What would you like to know?"):
+
+    if not kb_id or not kb_id.strip():
+        kb_id_dialog()
+        st.stop()
+    
+    if not is_valid_kb_id(kb_id):
+        kb_id_dialog()
+        st.stop()
+    if not st.session_state.valid_kb:
+        correct_kb()
+        st.session_state.valid_kb = True
+
     prompt_result = valid_prompt(prompt, model_id, min_prompt_length)
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
