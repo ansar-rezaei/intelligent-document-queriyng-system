@@ -135,11 +135,14 @@ if prompt := st.chat_input("What would you like to know?"):
             response = generate_response(full_prompt, model_id, temperature, top_p, max_tokens)
             status.update(label="✅ Complete!", state="complete", expanded=False)
         else:
+            category_name = prompt_result.get("name", "Invalid Request")
+            rejection_reason = prompt_result.get("reason", "")
+            
+            st.error(f"❌ **{category_name}**: {rejection_reason}")
+            st.caption("💡 I can only answer questions about heavy machinery.")
+            
+            response = f"❌ I can't answer your question as it is {category_name}. 💡 I can only answer questions about heavy machinery."
             status.update(label="❌ Validation failed", state="error")
-            st.write(prompt_result["category"])
-            st.write(prompt_result["name"])
-            st.write(prompt_result["reason"])
-            response = "I'm unable to answer this, please try again"
 
 
     
