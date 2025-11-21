@@ -1,8 +1,15 @@
 import streamlit as st
-from bedrock_utils import query_knowledge_base, generate_response, valid_prompt, is_valid_kb_id
+from bedrock_utils import query_knowledge_base, generate_response, valid_prompt, is_valid_kb_id, format_sources
+
+st.set_page_config(
+    page_title="Heavy Machinery Copilot",
+    page_icon="🛠️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # Streamlit UI
-st.title("Bedrock Chat Application")
+st.title("Heavy Machinery Copilot")
 
 # Sidebar for configurations
 st.sidebar.header("Configuration")
@@ -100,13 +107,13 @@ if prompt := st.chat_input("What would you like to know?"):
         kb_id_dialog()
         st.stop()
 
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user",avatar="🧑‍💻"):
+        st.markdown(prompt)
+
     with st.status("Let's work on your request...", expanded=True) as status:
         st.write("🔍 Validating the prompt...")
         prompt_result = valid_prompt(prompt, model_id, min_prompt_length)
-    
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user",avatar="🧑‍💻"):
-            st.markdown(prompt)
 
         if prompt_result["allowed"]:
             st.write("✅Valid Request...")
@@ -123,4 +130,17 @@ if prompt := st.chat_input("What would you like to know?"):
     
     with st.chat_message("assistant",avatar="🤖"):
         st.markdown(response)
+
+        if prompt_result["allowed"] and kb_results:
+            with st.expander("📚 Click here to see the Sources", expanded=False):
+                for src in format_sources(kb_results):
+                    st.markdown(f"""
+                            **Source {src['index']}** (Confidence: {src['confidence_score']:.2%}")
+
+                            - **File:** `{src['file']}`
+                            - **Preview:** {src['text_snippet']}...
+
+                            ---
+                            """)
+
     st.session_state.messages.append({"role": "assistant", "content": response})

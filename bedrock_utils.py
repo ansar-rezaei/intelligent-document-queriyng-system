@@ -185,3 +185,18 @@ def is_valid_kb_id(kb_id):
         return True
     except ClientError:
         return False
+
+def format_sources(knowledgebase):
+    sources = []
+    for i, result in enumerate(knowledgebase, 1):
+        file= result.get('location', {}).get('s3Location', {}).get('uri', 'Unknown')
+        text = result.get('content', {}).get('text', '')[:200]
+        confidence = result.get('score', 0)
+        source_info = {
+            'index': i,
+            'file_path': file,
+            'confidence_score': confidence,
+            'text_snippet': text
+        }
+        sources.append(source_info)
+    return sources
