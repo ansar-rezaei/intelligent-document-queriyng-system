@@ -27,21 +27,21 @@ kb_id = st.sidebar.text_input(
 temperature = st.sidebar.select_slider(
     "Temperature",
     [i/10 for i in range(0,11)],
-    0.1,
+    0.3,
     help="Higher = more creative and unpredictable, lower = more consistent and focused"
 )
 
 top_p = st.sidebar.select_slider(
     "Top_P",
     [i/1000 for i in range(0,1001)],
-    0.1,
+    0.3,
     help="Controls word choice variety - keep low for technical topics"
 )
 
 min_prompt_length = st.sidebar.select_slider(
     "Min Prompt Length",
     [i for i in range(5,100,5)],
-    20,
+    30,
     help="Prompts shorter than this value will be rejected"
 )
 
@@ -51,6 +51,15 @@ num_kb_results = st.sidebar.slider(
     max_value=10,
     value=3,
     help="More results = better context but slower/more expensive"
+)
+
+max_tokens = st.sidebar.slider(
+    "Max Response Tokens",
+    min_value=100,
+    max_value=1000,
+    value=300,
+    step=50,
+    help="Maximum length of response - higher = longer answers but more expensive"
 )
 
 # Initialize session state
@@ -122,7 +131,7 @@ if prompt := st.chat_input("What would you like to know?"):
             st.write("🤖 Generating...")
             context = "\n".join([kb_result['content']['text'] for kb_result in kb_results])
             full_prompt = f"Context: {context}\n\nUser: {prompt}\n\n"
-            response = generate_response(full_prompt, model_id, temperature, top_p)
+            response = generate_response(full_prompt, model_id, temperature, top_p, max_tokens)
             status.update(label="✅ Complete!", state="complete", expanded=False)
         else:
             response = "I'm unable to answer this, please try again"
@@ -137,7 +146,7 @@ if prompt := st.chat_input("What would you like to know?"):
                     st.markdown(f"""
                             **Source {src['index']}** (Confidence: {src['confidence_score']:.2%}")
 
-                            - **File:** `{src['file']}`
+                            - **File:** `{src['file_path']}`
                             - **Preview:** {src['text_snippet']}...
 
                             ---

@@ -147,7 +147,7 @@ def query_knowledge_base(query, kb_id, num_results=3):
         print(f"Error querying Knowledge Base: {e}")
         return []
 
-def generate_response(prompt, model_id, temperature, top_p):
+def generate_response(prompt, model_id, temperature, top_p, max_tokens=500):
     try:
 
         messages = [
@@ -169,7 +169,7 @@ def generate_response(prompt, model_id, temperature, top_p):
             body=json.dumps({
                 "anthropic_version": "bedrock-2023-05-31", 
                 "messages": messages,
-                "max_tokens": 500,
+                "max_tokens": max_tokens,
                 "temperature": temperature,
                 "top_p": top_p,
             })
