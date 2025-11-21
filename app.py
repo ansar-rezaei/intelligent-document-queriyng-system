@@ -34,14 +34,14 @@ temperature = st.sidebar.select_slider(
 top_p = st.sidebar.select_slider(
     "Top_P",
     [i/1000 for i in range(0,1001)],
-    0.3,
+    0.1,
     help="Controls word choice variety - keep low for technical topics"
 )
 
 min_prompt_length = st.sidebar.select_slider(
     "Min Prompt Length",
     [i for i in range(5,100,5)],
-    30,
+    10,
     help="Prompts shorter than this value will be rejected"
 )
 
@@ -135,8 +135,13 @@ if prompt := st.chat_input("What would you like to know?"):
             response = generate_response(full_prompt, model_id, temperature, top_p, max_tokens)
             status.update(label="✅ Complete!", state="complete", expanded=False)
         else:
-            response = "I'm unable to answer this, please try again"
             status.update(label="❌ Validation failed", state="error")
+            st.write(prompt_result["category"])
+            st.write(prompt_result["name"])
+            st.write(prompt_result["reason"])
+            response = "I'm unable to answer this, please try again"
+
+
     
     with st.chat_message("assistant",avatar="🤖"):
         st.markdown(response)
