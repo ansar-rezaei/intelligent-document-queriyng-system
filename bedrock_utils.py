@@ -189,7 +189,7 @@ def is_valid_kb_id(kb_id):
 def format_sources(knowledgebase):
     sources = []
     for i, result in enumerate(knowledgebase, 1):
-        file= result.get('location', {}).get('s3Location', {}).get('uri', 'Unknown')
+        file = result.get('location', {}).get('s3Location', {}).get('uri', 'Unknown')
         text = result.get('content', {}).get('text', '')[:200]
         confidence = result.get('score', 0)
         source_info = {

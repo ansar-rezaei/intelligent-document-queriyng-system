@@ -123,7 +123,8 @@ if prompt := st.chat_input("What would you like to know?"):
     with st.status("Let's work on your request...", expanded=True) as status:
         st.write("🔍 Validating the prompt...")
         prompt_result = valid_prompt(prompt, model_id, min_prompt_length)
-
+        
+        kb_results = []
         if prompt_result["allowed"]:
             st.write("✅Valid Request...")
             st.write("📚 Searching KB...")
