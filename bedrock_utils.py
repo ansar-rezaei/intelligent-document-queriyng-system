@@ -59,7 +59,16 @@ categoreis_prompt = "\n".join([
     for key, value in categories.items()
 ])
 
-def valid_prompt(prompt, model_id):
+def valid_prompt(prompt, model_id, min_length=10):
+
+    if not prompt or len(str(prompt).strip().lower()) < min_length:
+        return {
+            "allowed": False,
+            "category": None,
+            "name": "Invalid Input",
+            "reason": "Prompt is too Short or Empty"
+        }
+
     try:
         messages = [
             {
@@ -93,21 +102,24 @@ def valid_prompt(prompt, model_id):
             })
         )
         category = json.loads(response['body'].read())['content'][0]["text"]
-        category_details = categories[category]
-        print(
-            f"\n ---Details of the Category---\n"
-            f"Your request is in the {category_details['name']} Category\n"
-            f"Description: {category_details['desc']}\n"
-            f"This category is {'✅ allowed' if category_details['allowed'] else '❌ Not Allowed'}"
-        )
+        category_details = categories[category.strip().upper()]
         
-        if category_details['allowed']:
-            return True
-        else:
-            return False
+        return {
+            "allowed": category_details['allowed'],
+            "category": category,
+            "name": category_details['name'],
+            "reason": category_details['desc']
+        }
+
     except ClientError as e:
-        print(f"Error validating prompt: {e}")
-        return False
+        error_code = e.response["Error"]["Code"]
+        error_message = e.response["Error"]["Message"]
+        return {
+            "allowed" : False,
+            "category": None,
+            "name": error_code,
+            "reason": error_message
+        }
 
 def query_knowledge_base(query, kb_id):
     try:
