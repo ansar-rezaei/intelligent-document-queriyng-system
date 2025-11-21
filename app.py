@@ -12,7 +12,10 @@ model_id = st.sidebar.selectbox(
     ["anthropic.claude-3-haiku-20240307-v1:0", "anthropic.claude-3-sonnet-20240229-v1:0", "anthropic.claude-3-5-sonnet-20240620-v1:0","anthropic.claude-3-5-haiku-20241022-v1:0"],
 )
 
-kb_id = st.sidebar.text_input("Knowledge Base ID")
+kb_id = st.sidebar.text_input(
+    "Knowledge Base ID",
+    "WFVBDOSYOR"
+)
 
 temperature = st.sidebar.select_slider(
     "Temperature",
@@ -33,6 +36,14 @@ min_prompt_length = st.sidebar.select_slider(
     [i for i in range(5,100,5)],
     20,
     help="Prompts shorter than this value will be rejected"
+)
+
+num_kb_results = st.sidebar.slider(
+    "Number of KB Results",
+    min_value=1,
+    max_value=10,
+    value=3,
+    help="More results = better context but slower/more expensive"
 )
 
 # Initialize session state
@@ -94,7 +105,7 @@ if prompt := st.chat_input("What would you like to know?"):
         st.markdown(prompt)
 
     if prompt_result["allowed"]:
-        kb_results = query_knowledge_base(prompt, kb_id)
+        kb_results = query_knowledge_base(prompt, kb_id, num_kb_results)
         context = "\n".join([kb_result['content']['text'] for kb_result in kb_results])
         full_prompt = f"Context: {context}\n\nUser: {prompt}\n\n"
         response = generate_response(full_prompt, model_id, temperature, top_p)

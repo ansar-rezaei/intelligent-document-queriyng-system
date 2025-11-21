@@ -129,7 +129,7 @@ def valid_prompt(prompt, model_id, min_length=10):
             "reason": error_message
         }
 
-def query_knowledge_base(query, kb_id):
+def query_knowledge_base(query, kb_id, num_results=3):
     try:
         response = bedrock_kb.retrieve(
             knowledgeBaseId=kb_id,
@@ -138,7 +138,7 @@ def query_knowledge_base(query, kb_id):
             },
             retrievalConfiguration={
                 'vectorSearchConfiguration': {
-                    'numberOfResults': 3
+                    'numberOfResults': num_results
                 }
             }
         )
