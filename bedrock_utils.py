@@ -54,8 +54,8 @@ categories = {
     }
 }
 
-categoreis_prompt = "\n".join([
-    f"Category {key}: {value}"
+categories_prompt = "\n".join([
+    f"Category {key}: {value['desc']}"
     for key, value in categories.items()
 ])
 
@@ -77,7 +77,7 @@ def valid_prompt(prompt, model_id, min_length=10):
                     {
                     "type": "text",
                     "text": f"""Human: Clasify the provided user request into one of the following categories. Evaluate the user request agains each category. Once the user category has been selected with high confidence return the answer.
-                                {categoreis_prompt}
+                                {categories_prompt}
                                 <user_request>
                                 {prompt}
                                 </user_request>
@@ -101,8 +101,15 @@ def valid_prompt(prompt, model_id, min_length=10):
                 "top_p": 0.1,
             })
         )
-        category = json.loads(response['body'].read())['content'][0]["text"]
-        category_details = categories[category.strip().upper()]
+        category = json.loads(response['body'].read())['content'][0]["text"].strip().upper()
+        if category not in categories:
+            return{
+                "allowed" : False,
+                "category": None,
+                "name" : "Parse Error",
+                "reason": f"Unexpected Category: {category}"
+            }
+        category_details = categories[category]
         
         return {
             "allowed": category_details['allowed'],
