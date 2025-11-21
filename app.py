@@ -82,12 +82,13 @@ if kb_id_changed and kb_id and kb_id.strip():
 st.session_state.previous_kb_id = kb_id
 
 # Chat interface
-with st.chat_message("assistant"):
+with st.chat_message("assistant", avatar="🤖"):
     st.write("Hello human! I am your assistant! I am here to help you with your Heavy Machinery questions. How can I assist you today?")
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+         st.markdown(message["content"])
+
 
 # Chat input
 if prompt := st.chat_input("What would you like to know?"):
@@ -99,19 +100,27 @@ if prompt := st.chat_input("What would you like to know?"):
         kb_id_dialog()
         st.stop()
 
-    prompt_result = valid_prompt(prompt, model_id, min_prompt_length)
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    if prompt_result["allowed"]:
-        kb_results = query_knowledge_base(prompt, kb_id, num_kb_results)
-        context = "\n".join([kb_result['content']['text'] for kb_result in kb_results])
-        full_prompt = f"Context: {context}\n\nUser: {prompt}\n\n"
-        response = generate_response(full_prompt, model_id, temperature, top_p)
-    else:
-        response = "I'm unable to answer this, please try again"
+    with st.status("Let's work on your request...", expanded=True) as status:
+        st.write("🔍 Validating the prompt...")
+        prompt_result = valid_prompt(prompt, model_id, min_prompt_length)
     
-    with st.chat_message("assistant"):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user",avatar="🧑‍💻"):
+            st.markdown(prompt)
+
+        if prompt_result["allowed"]:
+            st.write("✅Valid Request...")
+            st.write("📚 Searching KB...")
+            kb_results = query_knowledge_base(prompt, kb_id, num_kb_results)
+            st.write("🤖 Generating...")
+            context = "\n".join([kb_result['content']['text'] for kb_result in kb_results])
+            full_prompt = f"Context: {context}\n\nUser: {prompt}\n\n"
+            response = generate_response(full_prompt, model_id, temperature, top_p)
+            status.update(label="✅ Complete!", state="complete", expanded=False)
+        else:
+            response = "I'm unable to answer this, please try again"
+            status.update(label="❌ Validation failed", state="error")
+    
+    with st.chat_message("assistant",avatar="🤖"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
