@@ -1,6 +1,14 @@
 # Temperature and Top_P: How They Control AI Responses
 
+**Author:** Ansar Rezaei  
+**Project:** AWS Bedrock Knowledge Base with Heavy Machinery Document Querying System  
+**Purpose:** This document explains how I configured temperature and top_p parameters in my RAG (Retrieval-Augmented Generation) application for querying heavy machinery specifications.
+
+---
+
 When working with AI language models, I can control how the model generates responses using two important parameters: temperature and top_p. These settings help me get the right kind of answer for my needs. I can choose between creative writing or precise technical information.
+
+In my project, I built a Streamlit application that uses Amazon Bedrock Knowledge Base connected to Aurora PostgreSQL Serverless. The application allows users to ask questions about heavy machinery equipment (excavators, bulldozers, cranes, etc.) and retrieves accurate information from uploaded specification documents. Understanding and configuring temperature and top_p correctly was crucial for getting accurate, technical answers rather than creative or unpredictable responses.
 
 ## Temperature
 
