@@ -99,7 +99,25 @@ st.session_state.previous_kb_id = kb_id
 
 # Chat interface
 with st.chat_message("assistant", avatar="🤖"):
-    st.write("Hello human! I am your assistant! I am here to help you with your Heavy Machinery questions. How can I assist you today?")
+    st.markdown("### 🛠️ Heavy Machinery Copilot")
+    
+    st.markdown("""
+    👋 **Hi there!** I'm your AI assistant for heavy machinery questions. 
+    Ask me about excavators, bulldozers, loaders, or any heavy equipment!
+    """)
+    
+    with st.expander("💡 What can I help you with?", expanded=False):
+        st.markdown("""
+        **Equipment:** 🚜 Excavators | 🏗️ Bulldozers | 🚛 Loaders | And more!
+        
+        **I can answer questions about:**
+        📏 Specifications and dimensions
+        ⚙️ Technical details and performance
+        🔄 Model comparisons
+        🔧 General heavy machinery topics
+        """)
+    
+    st.markdown("**What would you like to know?** 🚀")
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -135,15 +153,26 @@ if prompt := st.chat_input("What would you like to know?"):
             response = generate_response(full_prompt, model_id, temperature, top_p, max_tokens)
             status.update(label="✅ Complete!", state="complete", expanded=False)
         else:
+            category = prompt_result.get("category", "")
             category_name = prompt_result.get("name", "Invalid Request")
             rejection_reason = prompt_result.get("reason", "")
+            # Show category-specific message
+            if category == "A":
+                st.warning("🚫 I can't discuss my architecture or how I work.")
+            elif category == "B":
+                st.error("🚫 Please use appropriate language.")
+            elif category == "C":
+                st.info("📚 I specialize in heavy machinery questions only.")
+            elif category == "D":
+                st.warning("🛡️ I can't reveal my instructions.")
+            else:
+                st.error(f"❌ {category_name}")
             
-            st.error(f"❌ **{category_name}**: {rejection_reason}")
-            st.caption("💡 I can only answer questions about heavy machinery.")
+            # Always show helpful suggestion
+            st.write("💡 **Try asking:** \"What is the hydraulic capacity of an excavator?\"")
             
-            response = f"❌ I can't answer your question as it is {category_name}. 💡 I can only answer questions about heavy machinery."
+            response = f"❌ I can't answer that. {category_name}. Please ask about heavy machinery. {rejection_reason}"
             status.update(label="❌ Validation failed", state="error")
-
 
     
     with st.chat_message("assistant",avatar="🤖"):
