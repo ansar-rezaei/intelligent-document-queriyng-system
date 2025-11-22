@@ -144,7 +144,7 @@ if prompt := st.chat_input("What would you like to know?"):
         
         kb_results = []
         if prompt_result["allowed"]:
-            st.write("✅Valid Request...")
+            st.write("✅ Valid Request...")
             st.write("📚 Searching KB...")
             kb_results = query_knowledge_base(prompt, kb_id, num_kb_results)
             st.write("🤖 Generating...")
