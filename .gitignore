@@ -39,3 +39,7 @@ terraform.rc
 __pycache__/**
 
 .streamlit/*
+
+# Exclude all markdown files except README.md
+*.md
+!README.md
