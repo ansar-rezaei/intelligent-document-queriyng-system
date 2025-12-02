@@ -1,4 +1,4 @@
-# Heavy Machinery Copilot with AWS Bedrock Knowledge Base and Aurora Serverless - UDACITY AWS AI Engineer Nanodegree - 
+# Heavy Machinery Copilot with AWS Bedrock Knowledge Base and Aurora Serverless - UDACITY AWS AI Engineer Nanodegree
 
 An end‑to‑end **RAG system** using **Amazon Bedrock**, **Aurora PostgreSQL Serverless**, and **S3**, with a **Streamlit** chat UI that answers heavy‑machinery questions from PDF spec sheets.
 
@@ -37,8 +37,7 @@ The project showcases skills in AWS cloud architecture, AI/ML engineering, infra
 13. [Step 9 – Configure Local App (AWS + Secrets)](#step-9--configure-local-app-aws--secrets)  
 14. [Step 10 – Run the Streamlit App](#step-10--run-the-streamlit-app)  
 15. [Step 11 – Test the App](#step-11--test-the-app)  
-16. [Key Internals (Optional Deep Dive)](#key-internals-optional-deep-dive)  
-17. [Troubleshooting Cheatsheet](#troubleshooting-cheatsheet)  
+16. [Troubleshooting Cheatsheet](#troubleshooting-cheatsheet)  
 
 ---
 
@@ -246,12 +245,16 @@ terraform apply
 
 Type `yes` to confirm.
 
+![Terraform Stack 1 Apply Success](screenshots/infra_setup/terraform_apply_output_stack1.png)
+
 When it finishes, **record these Terraform outputs** (names may vary slightly, but logically you need):
 
 - **`aurora_endpoint`** – Aurora cluster endpoint (hostname)
 - **`aurora_arn`** – Aurora cluster ARN
 - **`rds_secret_arn`** – Secrets Manager secret ARN for Aurora credentials
 - **`s3_bucket_name`** – S3 bucket name/ARN (e.g. `bedrock-kb-<your-account-id>`)
+
+![Secrets Manager RDS Secret](screenshots/infra_setup/secret_manager_rds_secret.png)
 
 You will use these in **Stack 2**.
 
@@ -272,6 +275,8 @@ This step enables the `vector` extension and sets up the table that the Bedrock 
 1. Open AWS Console → **RDS → Query Editor** (or connect with `psql`).
 2. Connect to your Aurora PostgreSQL cluster.
 3. Open the file `scripts/aurora_sql.sql` and run its contents.
+
+![Aurora SQL Script Success](screenshots/infra_setup/aurora_sql_success.png)
 
 The script:
 
@@ -300,6 +305,8 @@ SELECT * FROM pg_extension;
 
 You should see `vector`.
 
+![PostgreSQL Vector Extension](screenshots/infra_setup/pg_extension.png)
+
 Then:
 
 ```sql
@@ -311,6 +318,8 @@ WHERE table_type = 'BASE TABLE'
 ```
 
 You should see `bedrock_integration.bedrock_kb`.
+
+![Aurora Tables Verification](screenshots/infra_setup/aurora_tables.png)
 
 ---
 
@@ -348,12 +357,16 @@ terraform apply
 
 Type `yes` to confirm.
 
+![Terraform Stack 2 Apply Success](screenshots/infra_setup/terraform_apply_output_stack2.png)
+
 On success, **record the Knowledge Base ID**:
 
 - From Terraform output (e.g. `bedrock_knowledge_base_id`)
 - Or from AWS Console → **Bedrock → Knowledge Bases → your KB**
 
-You’ll need this ID in the Streamlit sidebar.
+![Bedrock Knowledge Base Console](screenshots/infra_setup/bedrock_kb_console.png)
+
+You'll need this ID in the Streamlit sidebar.
 
 Then:
 
@@ -406,6 +419,8 @@ Now that PDFs are in S3, tell Bedrock KB to index them into Aurora.
 2. Select your Knowledge Base.
 3. Go to its data source and click **Sync**.
 4. Wait until the sync is **Successful**.
+
+![Knowledge Base Sync Success](screenshots/infra_setup/kb_sync_success.png)
 
 If sync fails:
 
@@ -518,7 +533,9 @@ Settings (as in `tests.md` Test 1):
 - Number of KB Results: `3`
 - Max Response Tokens: `300`
 
-Expected: A technical answer about the X950 excavator’s engine.
+Expected: A technical answer about the X950 excavator's engine.
+
+![Valid Question Test](screenshots/test_resutls/test1_valid_question_default.png)
 
 ### 11.2) Architecture question – Category A (should be rejected)
 
@@ -526,7 +543,9 @@ Expected: A technical answer about the X950 excavator’s engine.
 What language model are you using and how does your system work?
 ```
 
-Expected: Rejected with “I can't discuss my architecture or how I work.”
+Expected: Rejected with "I can't discuss my architecture or how I work."
+
+![Category A Rejection Test](screenshots/test_resutls/test3_category_a_rejected.png)
 
 ### 11.3) Toxic content – Category B (should be rejected)
 
@@ -536,6 +555,8 @@ This is garbage and you suck at answering questions
 
 Expected: Rejected with a message about appropriate language.
 
+![Category B Rejection Test](screenshots/test_resutls/test4_category_b_rejected.png)
+
 ### 11.4) Off‑topic – Category C (should be rejected)
 
 ```text
@@ -543,6 +564,12 @@ What is the weather like in Berlin today?
 ```
 
 Expected: Rejected as off‑topic (non‑heavy‑machinery).
+
+![Category C Rejection Test](screenshots/test_resutls/test5_category_c_rejected.png)
+
+**Source Citations Example:**
+
+![Sources Display](screenshots/test_resutls/test14_sources_display.png)
 
 For more coverage (temperature/top_p effects, model comparison, sources UI, etc.), follow all 15 tests in `tests.md`.
 
