@@ -1,252 +1,579 @@
-# Heavy Machinery Copilot - AWS Bedrock Knowledge Base with Aurora Serverless
+# Heavy Machinery Copilot with AWS Bedrock Knowledge Base and Aurora Serverless - UDACITY AWS AI Engineer Nanodegree - 
 
-🛠️ **Live Application:** [https://intelligent-document-queriyng-system.streamlit.app/](https://intelligent-document-queriyng-system.streamlit.app/)
+An end‑to‑end **RAG system** using **Amazon Bedrock**, **Aurora PostgreSQL Serverless**, and **S3**, with a **Streamlit** chat UI that answers heavy‑machinery questions from PDF spec sheets.
 
-This project is an intelligent document querying system that uses AWS Bedrock Knowledge Base integrated with an Aurora Serverless PostgreSQL database. It features a Streamlit chat application that allows users to query heavy machinery documentation using natural language.
+Follow this README **top to bottom** and you’ll go from a fresh machine to a **working local Streamlit app** talking to your own Bedrock Knowledge Base.
+
+---
+
+## About This Project
+
+This project was developed as the **final capstone project** for the **Udacity AWS AI Engineer Nanodegree Program**. It demonstrates end-to-end implementation of a production-ready RAG (Retrieval-Augmented Generation) system using AWS managed services, covering:
+
+- **Infrastructure as Code** (Terraform) for VPC, Aurora Serverless, S3, and Bedrock Knowledge Base
+- **Vector database** setup with PostgreSQL and pgvector extension
+- **LLM integration** with Amazon Bedrock (Claude models)
+- **Prompt engineering** and validation for production safety
+- **Full-stack application** development with Streamlit
+
+The project showcases skills in AWS cloud architecture, AI/ML engineering, infrastructure automation, and building scalable, production-ready AI applications.
+
+---
 
 ## Table of Contents
 
-1. [Project Overview](#project-overview)
-2. [Live Application](#live-application)
-3. [Prerequisites](#prerequisites)
-4. [Project Structure](#project-structure)
-5. [Streamlit Application](#streamlit-application)
-6. [Deployment Steps](#deployment-steps)
-7. [Running the Application Locally](#running-the-application-locally)
-8. [Using the Scripts](#using-the-scripts)
-9. [Troubleshooting](#troubleshooting)
+1. [What You’ll Build](#what-youll-build)  
+2. [Architecture Overview](#architecture-overview)  
+3. [Project Structure](#project-structure)  
+4. [Prerequisites](#prerequisites)  
+5. [Step 1 – Clone the Repo](#step-1--clone-the-repo)  
+6. [Step 2 – Install Tools on Linux](#step-2--install-tools-on-linux)  
+7. [Step 3 – Python Environment](#step-3--python-environment)  
+8. [Step 4 – Deploy Stack 1 (VPC, Aurora, S3)](#step-4--deploy-stack-1-vpc-aurora-s3)  
+9. [Step 5 – Prepare Aurora for Vector Storage](#step-5--prepare-aurora-for-vector-storage)  
+10. [Step 6 – Deploy Stack 2 (Bedrock Knowledge Base)](#step-6--deploy-stack-2-bedrock-knowledge-base)  
+11. [Step 7 – Upload PDFs to S3](#step-7--upload-pdfs-to-s3)  
+12. [Step 8 – Sync the Knowledge Base](#step-8--sync-the-knowledge-base)  
+13. [Step 9 – Configure Local App (AWS + Secrets)](#step-9--configure-local-app-aws--secrets)  
+14. [Step 10 – Run the Streamlit App](#step-10--run-the-streamlit-app)  
+15. [Step 11 – Test the App](#step-11--test-the-app)  
+16. [Key Internals (Optional Deep Dive)](#key-internals-optional-deep-dive)  
+17. [Troubleshooting Cheatsheet](#troubleshooting-cheatsheet)  
 
-## Project Overview
+---
 
-This project is a RAG (Retrieval-Augmented Generation) system that enables natural language queries over heavy machinery documentation. It consists of:
+## What You’ll Build
 
-### Infrastructure Components
+- **Infrastructure**
+  - **Stack 1 (Terraform)**: VPC, Aurora PostgreSQL Serverless, S3 bucket, IAM, Secrets Manager
+  - **Stack 2 (Terraform)**: Bedrock Knowledge Base wired to Aurora + S3
+- **Application**
+  - `app.py`: Streamlit chat UI
+  - `bedrock_utils.py`: prompt validation, KB retrieval, LLM calls, KB ID validation, source formatting
+  - `scripts/aurora_sql.sql`: vector DB schema + indexes
+  - `scripts/upload_s3.py`: upload PDFs from `spec-sheets/` to S3
 
-1. **Stack 1** - Terraform configuration for creating:
-   - A VPC
-   - An Aurora Serverless PostgreSQL cluster
-   - S3 Bucket to hold documents
-   - Necessary IAM roles and policies
+End state: you can run
 
-2. **Stack 2** - Terraform configuration for creating:
-   - A Bedrock Knowledge Base
-   - Necessary IAM roles and policies
+```bash
+streamlit run app.py
+```
 
-3. **Database Setup** - SQL queries to prepare the Postgres database for vector storage
-4. **S3 Upload Script** - Python script for uploading files to S3
+…and ask questions like “What is the engine type of the X950 excavator?” against your own KB.
 
-### Application Components
+### Live Demo
 
-1. **Streamlit Chat Application** (`app.py`) - Interactive web interface for querying the knowledge base
-2. **Bedrock Utilities** (`bedrock_utils.py`) - Core functions for:
-   - Prompt validation and categorization
-   - Knowledge base querying
-   - LLM response generation
-   - Source formatting
+If you’d like to evaluate this project for **business use** or as part of a **hiring process**, contact me and I’ll grant you access to a private, hosted instance of the app for hands‑on testing:
 
-The system allows users to ask questions about heavy machinery (excavators, bulldozers, loaders, etc.) and receive accurate answers based on the documentation stored in the knowledge base.
+🛠️ **Live Application:** [https://intelligent-document-queriyng-system.streamlit.app/](https://intelligent-document-queriyng-system.streamlit.app/)
 
-## Live Application
+The rest of this README walks you through deploying **your own** infrastructure + knowledge base and running the app locally.
 
-🌐 **Access the live application:** [https://intelligent-document-queriyng-system.streamlit.app/](https://intelligent-document-queriyng-system.streamlit.app/)
+---
 
-The application is deployed on Streamlit Cloud and provides:
+## Architecture Overview
 
-- Interactive chat interface for querying heavy machinery documentation
-- Configurable LLM models (Claude 3 Haiku, Sonnet, and 3.5 variants)
-- Adjustable temperature and top_p parameters for response control
-- Source citations with confidence scores
-- Prompt validation to ensure queries are relevant and appropriate
+- **S3**: stores your PDF spec sheets (excavators, bulldozers, loaders, etc.)
+- **Aurora PostgreSQL Serverless**:
+  - `vector` extension
+  - `bedrock_integration.bedrock_kb` table with `embedding vector(1536)` and text/metadata
+- **Amazon Bedrock Knowledge Base**:
+  - Uses S3 + Aurora as data source and vector store
+  - Exposed via the `bedrock-agent-runtime` client
+- **Streamlit app**:
+  - Validates prompt category (A/B/C/D/E) using Bedrock models
+  - Only **Category E (heavy machinery)** prompts are allowed
+  - For valid prompts: `query_knowledge_base` → `generate_response` with context → answer + sources
 
-## Prerequisites
-
-Before you begin, ensure you have the following:
-
-- AWS CLI installed and configured with appropriate credentials
-- Terraform installed (version 0.12 or later)
-- Python 3.10 or later
-- pip (Python package manager)
+---
 
 ## Project Structure
 
 ```text
 project-root/
 │
-├── app.py                          # Streamlit chat application
-├── bedrock_utils.py                # Core Bedrock functions (KB query, LLM, validation)
-├── requirements.txt                # Python dependencies
+├── app.py                  # Streamlit chat app
+├── bedrock_utils.py        # Bedrock runtime + KB helpers
+├── requirements.txt        # Python deps
 │
-├── stack1/                         # Infrastructure Stack 1 (VPC, Aurora, S3)
-|   ├── main.tf
-|   ├── outputs.tf
-|   └── variables.tf
-|
-├── stack2/                         # Infrastructure Stack 2 (Bedrock KB)
-|   ├── main.tf
-|   ├── outputs.tf
-|   └── variables.tf
-|
-├── modules/
+├── stack1/                 # Terraform Stack 1 (VPC, Aurora, S3, IAM, Secrets)
+├── stack2/                 # Terraform Stack 2 (Bedrock Knowledge Base)
+├── modules/                # Terraform modules
 │   ├── aurora_serverless/
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   └── outputs.tf
 │   └── bedrock_kb/
-│       ├── main.tf
-│       ├── variables.tf
-│       └── outputs.tf
 │
 ├── scripts/
-│   ├── aurora_sql.sql              # Database setup queries
-│   └── upload_to_s3.py             # S3 file upload script
+│   ├── aurora_sql.sql      # DB schema + vector extension
+│   └── upload_s3.py        # Upload PDFs from spec-sheets/ to S3
 │
-├── spec-sheets/                    # Document storage (PDFs)
-│   └── machine_files.pdf
+├── spec-sheets/            # Put your PDF docs here
+├── .streamlit/             # Local secrets (you create secrets.toml)
 │
-├── .streamlit/
-│   └── secrets.toml                 # AWS credentials (not in repo)
-│
-└── README.md
+├── SETUP_GUIDE.md          # More verbose step-by-step
+├── tests.md                # Concrete test prompts + settings
+└── README.md               # This file
 ```
 
-## Deployment Steps
+---
 
-1. Clone this repository to your local machine.
+## Prerequisites
 
-2. Navigate to the project Stack 1. This stack includes VPC, Aurora servlerless and S3
+- **OS**: Linux (examples assume Debian/Ubuntu; adapt as needed)
+- **AWS account** with permissions for:
+  - VPC, RDS/Aurora, S3, IAM, Secrets Manager, Bedrock, Bedrock Knowledge Bases
+- **Tools**:
+  - Python **3.10+**
+  - `uv` (or `pip`/`venv` if you prefer)
+  - AWS CLI v2
+  - Terraform **>= 0.12**
 
-3. Initialize Terraform:
+If you already have Terraform, AWS CLI v2, and Python 3.10+ with virtualenv, you can skim Step 2.
 
-   ```bash
-   terraform init
-   ```
+---
 
-4. Review and modify the Terraform variables in `main.tf` as needed, particularly:
-   - AWS region
-   - VPC CIDR block
-   - Aurora Serverless configuration
-   - s3 bucket
+## Step 1 – Clone the Repo
 
-5. Deploy the infrastructure:
+```bash
+git clone https://github.com/ansar-rezaei/intelligent-document-queriyng-system.git
+cd intelligent-document-queriyng-system
+```
 
-   ```bash
-   terraform apply
-   ```
+---
 
-   Review the planned changes and type "yes" to confirm.
+## Step 2 – Install Tools on Linux
 
-6. After the Terraform deployment is complete, note the outputs, particularly the Aurora cluster endpoint.
+### 2.1) Base packages
 
-7. Prepare the Aurora Postgres database. This is done by running the sql queries in the script/ folder. This can be done through Amazon RDS console and the Query Editor.
+```bash
+sudo apt update
+sudo apt install -y curl unzip ca-certificates gnupg lsb-release
+```
 
-8. Navigate to the project Stack 2. This stack includes Bedrock Knowledgebase
+### 2.2) Install `uv` (Python env + package manager)
 
-9. Initialize Terraform:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+exec $SHELL -l
+uv --version
+```
 
-   ```bash
-   terraform init
-   ```
+### 2.3) Install Terraform
 
-10. Use the values outputs of the stack 1 to modify the values in `main.tf` as needed:
-     - Bedrock Knowledgebase configuration
+```bash
+curl -fsSL https://apt.releases.hashicorp.com/gpg \
+  | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 
-11. Deploy the infrastructure:
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+  | sudo tee /etc/apt/sources.list.d/hashicorp.list
 
-    ```bash
-    terraform apply
-    ```
+sudo apt update
+sudo apt install -y terraform
+terraform -version
+```
 
-    Review the planned changes and type "yes" to confirm.
+### 2.4) Install AWS CLI v2
 
-12. Upload pdf files to S3, place your files in the `spec-sheets` folder and run:
+```bash
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip -q awscliv2.zip
+sudo ./aws/install
+aws --version
+```
 
-    ```bash
-    python scripts/upload_to_s3.py
-    ```
+### 2.5) Configure AWS
 
-    Make sure to update the S3 bucket name in the script before running.
+```bash
+aws configure
+# AWS Access Key ID: <your key>
+# AWS Secret Access Key: <your secret>
+# Default region name: us-west-2 (or your region)
+# Default output format: json
+```
 
-13. Sync the data source in the knowledgebase to make it available to the LLM.
+Verify identity and region:
 
-## Streamlit Application
+```bash
+aws sts get-caller-identity
+aws configure get region
+```
 
-### Features
+Optional: if you use a named profile (e.g. `udacity`):
 
-The Streamlit application (`app.py`) provides an interactive chat interface with the following features:
+```bash
+export AWS_PROFILE=udacity
+aws sts get-caller-identity
+```
 
-- **Multi-Model Support**: Choose from Claude 3 Haiku, Sonnet, and 3.5 variants
-- **Configurable Parameters**:
-  - Temperature (0.0-1.0): Controls creativity and randomness
-  - Top_P (0.0-1.0): Controls word choice variety
-  - Min Prompt Length: Rejects queries that are too short
-  - Number of KB Results: Adjusts context retrieval (1-10)
-  - Max Response Tokens: Controls response length (100-1000)
-- **Prompt Validation**: Automatically categorizes and validates user prompts to ensure:
-  - Queries are relevant to heavy machinery
-  - No prompt injection attempts
-  - No toxic or inappropriate content
-  - No off-topic requests
-- **Source Citations**: Displays source documents with confidence scores
-- **Knowledge Base Validation**: Validates KB ID before processing queries
+---
 
-### Application Functions
+## Step 3 – Python Environment
 
-The `bedrock_utils.py` module contains:
+From the **repo root**:
 
-- `valid_prompt()`: Validates and categorizes user prompts using LLM classification
-- `query_knowledge_base()`: Retrieves relevant context from the Bedrock Knowledge Base
-- `generate_response()`: Generates LLM responses using retrieved context
-- `is_valid_kb_id()`: Validates Knowledge Base ID
-- `format_sources()`: Formats retrieval results for display
+```bash
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
+```
 
-## Running the Application Locally
+If you don’t want `uv`:
 
-1. **Install dependencies**:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+---
 
-2. **Configure AWS credentials**:
+## Step 4 – Deploy Stack 1 (VPC, Aurora, S3)
 
-   Create a `.streamlit/secrets.toml` file with your AWS credentials:
+This creates:
 
-   ```toml
-   [aws]
-   aws_access_key_id = "your-access-key"
-   aws_secret_access_key = "your-secret-key"
-   region = "your-region"
-   ```
+- VPC, subnets, security groups  
+- Aurora PostgreSQL Serverless cluster  
+- S3 bucket for documents  
+- IAM + Secrets Manager for DB credentials
 
-3. **Run the Streamlit app**:
+From repo root:
 
-   ```bash
-   streamlit run app.py
-   ```
+```bash
+cd stack1
+terraform init
+terraform apply
+```
 
-4. **Access the application**:
-   Open your browser to `http://localhost:8501`
+Type `yes` to confirm.
 
-## Using the Scripts
+When it finishes, **record these Terraform outputs** (names may vary slightly, but logically you need):
 
-### S3 Upload Script
+- **`aurora_endpoint`** – Aurora cluster endpoint (hostname)
+- **`aurora_arn`** – Aurora cluster ARN
+- **`rds_secret_arn`** – Secrets Manager secret ARN for Aurora credentials
+- **`s3_bucket_name`** – S3 bucket name/ARN (e.g. `bedrock-kb-<your-account-id>`)
 
-The `upload_to_s3.py` script does the following:
+You will use these in **Stack 2**.
 
-- Uploads all files from the `spec-sheets` folder to a specified S3 bucket
-- Maintains the folder structure in S3
+Then:
 
-To use it:
+```bash
+cd ..
+```
 
-1. Update the `bucket_name` variable in the script with your S3 bucket name.
-2. Optionally, update the `prefix` variable if you want to upload to a specific path in the bucket.
-3. Run `python scripts/upload_to_s3.py`.
+---
 
-## Troubleshooting
+## Step 5 – Prepare Aurora for Vector Storage
 
-- If you encounter permissions issues, ensure your AWS credentials have the necessary permissions for creating all the resources.
-- For database connection issues, check that the security group allows incoming connections on port 5432 from your IP address.
-- If S3 uploads fail, verify that your AWS credentials have permission to write to the specified bucket.
-- For any Terraform errors, ensure you're using a compatible version and that all module sources are correctly specified.
+This step enables the `vector` extension and sets up the table that the Bedrock KB uses.
 
-For more detailed troubleshooting, refer to the error messages and logs provided by Terraform and the Python scripts.
+### 5.1) Run `scripts/aurora_sql.sql`
+
+1. Open AWS Console → **RDS → Query Editor** (or connect with `psql`).
+2. Connect to your Aurora PostgreSQL cluster.
+3. Open the file `scripts/aurora_sql.sql` and run its contents.
+
+The script:
+
+- Creates the `vector` extension
+- Creates schema `bedrock_integration`
+- Creates table:
+
+```sql
+CREATE TABLE IF NOT EXISTS bedrock_integration.bedrock_kb (
+    id uuid PRIMARY KEY,
+    embedding vector(1536),
+    chunks text,
+    metadata json
+);
+```
+
+- Adds vector + text indexes for retrieval
+
+### 5.2) Quick verification
+
+In the query editor:
+
+```sql
+SELECT * FROM pg_extension;
+```
+
+You should see `vector`.
+
+Then:
+
+```sql
+SELECT
+    table_schema || '.' || table_name AS show_tables
+FROM information_schema.tables
+WHERE table_type = 'BASE TABLE'
+  AND table_schema = 'bedrock_integration';
+```
+
+You should see `bedrock_integration.bedrock_kb`.
+
+---
+
+## Step 6 – Deploy Stack 2 (Bedrock Knowledge Base)
+
+Stack 2 wires a Bedrock Knowledge Base to **your** Aurora + S3.
+
+### 6.1) Configure `stack2/main.tf`
+
+Open `stack2/main.tf` and find the Bedrock KB module. It will look roughly like:
+
+```hcl
+module "bedrock_kb" {
+  source = "../modules/bedrock_kb"
+
+  aurora_arn        = "<your-aurora-cluster-arn>"
+  aurora_endpoint   = "<your-aurora-endpoint>"
+  aurora_secret_arn = "<your-rds-secret-arn>"
+  s3_bucket_arn     = "<your-s3-bucket-arn-or-name>"
+  # ...other required variables
+}
+```
+
+Replace the placeholder values with actual outputs from **Stack 1**.
+
+### 6.2) Apply Stack 2
+
+From repo root:
+
+```bash
+cd stack2
+terraform init
+terraform apply
+```
+
+Type `yes` to confirm.
+
+On success, **record the Knowledge Base ID**:
+
+- From Terraform output (e.g. `bedrock_knowledge_base_id`)
+- Or from AWS Console → **Bedrock → Knowledge Bases → your KB**
+
+You’ll need this ID in the Streamlit sidebar.
+
+Then:
+
+```bash
+cd ..
+```
+
+---
+
+## Step 7 – Upload PDFs to S3
+
+### 7.1) Prepare PDFs in `spec-sheets/`
+
+The repository already includes sample heavy‑machinery PDF files in the `spec-sheets/` folder. If you have additional PDF files you'd like to include, add them to this folder before running the upload script.
+
+### 7.2) Configure `scripts/upload_s3.py`
+
+At the bottom of `scripts/upload_s3.py`:
+
+```python
+folder_path = "spec-sheets"
+bucket_name = "bedrock-kb-109024386436"  # Replace with your actual bucket name
+prefix = "spec-sheets"
+```
+
+- Set **`bucket_name`** to match the bucket from Stack 1 (e.g. `bedrock-kb-<account-id>`).
+- Leave `prefix = "spec-sheets"` unless you want a different key prefix.
+
+### 7.3) Run the upload
+
+From repo root, with the venv active:
+
+```bash
+python scripts/upload_s3.py
+```
+
+Expected output contains lines like:
+
+```text
+Successfully uploaded X950-excavator.pdf to my-bucket/spec-sheets/X950-excavator.pdf
+```
+
+---
+
+## Step 8 – Sync the Knowledge Base
+
+Now that PDFs are in S3, tell Bedrock KB to index them into Aurora.
+
+1. AWS Console → **Bedrock → Knowledge Bases**.
+2. Select your Knowledge Base.
+3. Go to its data source and click **Sync**.
+4. Wait until the sync is **Successful**.
+
+If sync fails:
+
+- Confirm S3 bucket and region are correct.
+- Make sure Aurora is reachable and credentials via `rds_secret_arn` are valid.
+- Verify `bedrock_integration.bedrock_kb` exists with the right schema.
+
+---
+
+## Step 9 – Configure Local App (AWS + Secrets)
+
+The app uses `st.secrets` to build the Boto3 session.
+
+### 9.1) Create `.streamlit/secrets.toml`
+
+From repo root:
+
+```bash
+mkdir -p .streamlit
+```
+
+Create `.streamlit/secrets.toml`:
+
+```toml
+[aws]
+aws_access_key_id = "YOUR_ACCESS_KEY_ID"
+aws_secret_access_key = "YOUR_SECRET_ACCESS_KEY"
+region = "us-west-2"  # or your region
+```
+
+This feeds directly into:
+
+```python
+my_session = boto3.session.Session(**st.secrets.aws)
+```
+
+So use the exact key names: `aws_access_key_id`, `aws_secret_access_key`, `region`.
+
+### 9.2) Region sanity check
+
+- Terraform region
+- `.streamlit/secrets.toml` region
+- `aws configure get region`
+- Bedrock/BK region
+
+All should match (e.g. `us-west-2`), or you’ll see “model not found” or auth issues.
+
+---
+
+## Step 10 – Run the Streamlit App
+
+From repo root, with venv active:
+
+```bash
+streamlit run app.py
+```
+
+Then open:
+
+```text
+http://localhost:8501
+```
+
+### 10.1) Sidebar configuration
+
+In the sidebar:
+
+- **Model**: choose one:
+  - `anthropic.claude-3-haiku-20240307-v1:0`
+  - `anthropic.claude-3-sonnet-20240229-v1:0`
+  - `anthropic.claude-3-5-sonnet-20240620-v1:0`
+  - `anthropic.claude-3-5-haiku-20241022-v1:0`
+  
+  To add more models or modify this list, edit the `model_id` selectbox in `app.py` (around line 17-20).
+- **Knowledge Base ID**: paste the ID from Step 6 (replace the hard‑coded placeholder).
+- **Temperature**: `0.3` is a good starting point.
+- **Top_P**: `0.1` for focused technical answers.
+- **Min Prompt Length**: keep at `10` initially.
+- **Number of KB Results**: `3` is fine to start.
+- **Max Response Tokens**: e.g. `300`.
+
+Flow in `app.py`:
+
+1. User prompt → `valid_prompt(prompt, model_id, min_prompt_length)`
+2. If allowed (Category E):
+   - `query_knowledge_base(prompt, kb_id, num_kb_results)`
+   - Build a `full_prompt` with contextual KB text
+   - `generate_response(full_prompt, model_id, temperature, top_p, max_tokens)`
+3. Show answer + optional sources via `format_sources(kb_results)`.
+
+---
+
+## Step 11 – Test the App
+
+You have a full test matrix in `tests.md`. Here are a few quick ones.
+
+### 11.1) Valid heavy‑machinery question (should be accepted)
+
+Prompt:
+
+```text
+What is the engine type of the X950 excavator?
+```
+
+Settings (as in `tests.md` Test 1):
+
+- Temperature: `0.3`
+- Top_P: `0.1`
+- Min Prompt Length: `10`
+- Number of KB Results: `3`
+- Max Response Tokens: `300`
+
+Expected: A technical answer about the X950 excavator’s engine.
+
+### 11.2) Architecture question – Category A (should be rejected)
+
+```text
+What language model are you using and how does your system work?
+```
+
+Expected: Rejected with “I can't discuss my architecture or how I work.”
+
+### 11.3) Toxic content – Category B (should be rejected)
+
+```text
+This is garbage and you suck at answering questions
+```
+
+Expected: Rejected with a message about appropriate language.
+
+### 11.4) Off‑topic – Category C (should be rejected)
+
+```text
+What is the weather like in Berlin today?
+```
+
+Expected: Rejected as off‑topic (non‑heavy‑machinery).
+
+For more coverage (temperature/top_p effects, model comparison, sources UI, etc.), follow all 15 tests in `tests.md`.
+
+---
+
+## Troubleshooting Cheatsheet
+
+- **Terraform (Stack 1/2) errors**
+  - **Check**: IAM permissions, AWS profile/region, Terraform version, module paths.
+  - Ensure you ran `terraform init` in each stack directory before `terraform apply`.
+
+- **Aurora / DB issues**
+  - Re‑run `scripts/aurora_sql.sql`.
+  - Confirm `vector` extension is present: `SELECT * FROM pg_extension;`.
+  - Confirm `bedrock_integration.bedrock_kb` table exists.
+
+- **KB sync fails or no results**
+  - Did you **Sync** the data source after uploading PDFs?
+  - Bucket name and region must match the KB config.
+  - Secrets Manager must hold valid Aurora credentials (referenced by `rds_secret_arn`).
+
+- **Streamlit says KB ID invalid**
+  - Paste the exact ID from Terraform or Bedrock console.
+  - Region in `.streamlit/secrets.toml` must match the KB region.
+
+- **Bedrock model invocation errors**
+  - Ensure Bedrock + Bedrock KB are enabled in that region for your account.
+  - Use a `model_id` that actually exists in that region.
+
+- **Prompts being blocked “too much”**
+  - That’s by design: only Category E (heavy machinery) returns `allowed=True`.
+  - Adjust the logic in `valid_prompt` if you want to allow other categories.
+
+If you want even more detail (screenshots, rubric mapping, cleanup best practices), read `SETUP_GUIDE.md`.
